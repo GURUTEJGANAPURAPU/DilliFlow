@@ -1,0 +1,56 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets
+.env
+**/.env
+!.env.example
+
+# Node
+node_modules/
+dist/
+
+# Local data artifacts (raw source ZIPs are delivered in this bundle)
+backend/data/processed/*.sqlite
+backend/data/processed/*.sqlite-shm
+backend/data/processed/*.sqlite-wal
+backend/data/tmp/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# Secrets and environment files
+.env.*
+**/.env.*
+!**/.env.example
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+**/node_modules/
+**/dist/
+**/build/
+**/.vite/
+**/.vercel/
+# Local databases and datasets
+**/data/raw/
+**/data/processed/
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.pb
+# Credentials and private keys
+*.pem
+*.key
+id_rsa
+secrets/
+# OS files
+
+**/*.tsbuildinfo

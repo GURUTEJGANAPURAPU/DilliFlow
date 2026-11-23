@@ -1,0 +1,101 @@
+DILLIFLOW — PROBLEM 2 + OPERATOR WORKSPACE UPDATE
+=================================================
+
+This is a source-code update for an existing DilliFlow installation.
+It does NOT include your local database, raw datasets, API key, .env, Python
+virtual environment, or node_modules.
+
+APPLY THE UPDATE
+----------------
+1. Stop the FastAPI and Vite terminal windows with Ctrl+C.
+2. Extract this ZIP into D:\DilliFlow.
+3. Choose Replace existing files when Windows asks.
+4. Do NOT delete or overwrite:
+     backend\.env
+     backend\data\processed\dilliflow.sqlite
+     backend\data\raw\
+     .venv\
+     frontend\node_modules\
+5. Do NOT run prepare_data.ps1 again. Your local database is already built.
+
+START AND TEST
+--------------
+Terminal 1 — Backend:
+  cd D:\DilliFlow\backend
+  & "D:\DilliFlow\.venv\Scripts\python.exe" -m pip install -r requirements.txt
+  & "D:\DilliFlow\.venv\Scripts\python.exe" -m pytest -q
+  & "D:\DilliFlow\.venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+Terminal 2 — Frontend:
+  cd D:\DilliFlow\frontend
+  npm run dev
+
+Open:
+  http://127.0.0.1:5173
+  http://127.0.0.1:8000/docs
+
+OPERATOR WORKSPACE SETUP
+------------------------
+The commuter dashboard remains public. No account or sign-in is needed for
+Journey Planner, Live Bus Map, Crowding Insights, Routes & Stops or Methodology.
+
+Only /operator requires an operator ID and password.
+From the project root, run:
+  cd D:\DilliFlow
+  Set-ExecutionPolicy -Scope Process Bypass
+  .\configure_operator.ps1
+
+Choose an operator ID and a password with at least 12 characters. The script
+writes OPERATOR_ID and OPERATOR_PASSWORD to backend\.env and generates a random
+OPERATOR_TOKEN_SECRET. It preserves your existing Transport Stack API key.
+Restart FastAPI after the script completes. Keep backend\.env private and do
+not commit it to GitHub.
+
+CROWDING CAPACITY CONFIGURATION
+-------------------------------
+The ticket file does not contain verified fleet seat/standing capacities.
+DilliFlow does not invent them. After operator sign-in, enter verified seat
+and standing capacity for each route in the capacity configuration panel.
+Only then does that route use Seats likely available / Standing room likely /
+Crowded classifications. Until then, the commuter view shows relative
+Low / Moderate / High ticket-demand levels and confidence/coverage information.
+Only configure one route-level capacity when the vehicles operating that route
+share the same verified capacity baseline.
+
+WHAT CHANGED
+------------
+- Added protected operator login and signed expiring bearer sessions.
+- Added operator dashboard: peak-hour demand, route/direction ranking,
+  high-demand stop-pair segments and capacity-pressure review.
+- Added route capacity profile management, protected by operator auth.
+- Added ticketed passengers per scheduled bus as an explicit historical proxy.
+- Added capacity-calibrated crowding categories when verified capacity exists.
+- Kept commuter routes public and free of login requirements.
+- Added an explicit guard against creating per-bus estimates from an all-hours
+  fallback when the same-hour departure denominator is unavailable.
+- Added the estimated ticketed passengers per scheduled bus to commuter journey
+  options, bus details and stop-to-stop crowd timeline where available.
+
+VALIDATION PERFORMED IN THE BUILD ENVIRONMENT
+---------------------------------------------
+- Backend pytest suite: 20 passed.
+- Python compileall: passed.
+- Frontend TS/TSX syntax-only check: 13 source files passed.
+- Operator API smoke test: public health, login, unauthorized rejection,
+  protected dashboard and capacity save passed using a temporary test database.
+- Full local Vite production build was not run because npm dependencies were
+  not installed in this build environment. Run `npm run build` on your PC.
+
+IMPORTANT MODEL LIMITATIONS
+---------------------------
+- The per-bus value is estimated ticketed passengers per scheduled bus:
+  median daily ticket journeys for a route/segment/hour divided by scheduled
+  GTFS departures at the route origin/segment origin in that hour.
+- It is not a sensor reading or verified total onboard occupancy.
+- Ticket numbers can undercount all passengers; no undocumented expansion
+  factor is applied. Vehicle number is missing from 48.52% of supplied ticket
+  records, limiting vehicle-level validation.
+- UP/DOWN direction is encoded in most route labels as separate GTFS route
+  records; services without an explicit direction label are marked unknown.
+- Stop names are partially matched. Confidence and coverage must remain visible.
+- Capacity-based labels require actual, operator-verified capacity inputs.

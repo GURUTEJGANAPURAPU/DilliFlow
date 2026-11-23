@@ -1,0 +1,85 @@
+DILLIFLOW — FINAL REFINEMENT PATCH
+==================================
+
+This is an incremental source-code patch for the newer project at:
+D:\DilliFlow\DilliFlow
+
+It does NOT include or replace:
+- backend/.env (API key and operator credentials)
+- backend/data/processed/dilliflow.sqlite
+- backend/data/raw source archives
+- frontend/node_modules
+
+FEATURES INCLUDED
+-----------------
+Operator workspace:
+- Service recommendation cards with evidence and next actions.
+- Route rankings across all matched route IDs, ranked by ticketed journeys per scheduled departure where the schedule denominator exists.
+- Searchable stop-to-stop segment investigations with priority filters.
+- Capacity pressure checks only against operator-verified capacity profiles.
+- CSV export of route and segment analysis.
+- Data-quality metrics for route, boarding/alighting stops and missing vehicle IDs.
+- Direction labels are representative GTFS direction patterns where ticket records do not identify direction.
+
+Journey planner:
+- Seat capacity, estimated available seats, standing capacity and estimated available standing spaces for each journey leg.
+- Capacity strip on each live-bus card.
+- Explicit indication of whether the capacity profile is operator-verified or the DilliFlow planning baseline.
+- A fallback label for cases without a matched load estimate, instead of a misleading “Not enough data” crowd badge.
+- More explicit historical-demand/capacity explanations.
+
+Transparency and presentation:
+- New custom DilliFlow transit-route mark beside the wordmark.
+- Methodology page explains the limits of ticket-derived load and route-level capacity estimates.
+- Seat/standing/crowded categorical claims only activate when route capacity has been operator-verified.
+
+CAPACITY DATA LIMITATION — PLEASE READ
+--------------------------------------
+The current source data does not contain verified seat and standing capacity for each individual bus, nor live passenger counts. To keep the journey planner populated, the application displays an explicitly identified DilliFlow planning baseline of 35 seats + 25 standing spaces when no verified route fleet profile exists. These values are planning assumptions, NOT official specifications for every Delhi bus. Estimated available seats/standing spaces use the historical ticket-demand proxy where possible. If no load proxy is available, the UI shows nominal upper bounds, not measured vacancies. Live GPS location is not a passenger-count sensor.
+
+Apply the patch
+---------------
+1. Stop the current frontend and backend terminals with Ctrl+C.
+2. Make a backup of the relevant source directories (commands below).
+3. Extract this ZIP into D:\DilliFlow\DilliFlow, choosing “replace files” if prompted.
+4. Do NOT re-run ingestion. The database schema is unchanged and the existing ingested database is retained.
+5. Run the backend tests, then restart FastAPI and Vite as shown below.
+
+PowerShell backup commands:
+
+$root = 'D:\DilliFlow\DilliFlow'
+$backup = 'D:\DilliFlow\DilliFlow-source-backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+New-Item -ItemType Directory -Force $backup | Out-Null
+Copy-Item "$root\backend\app" "$backup\backend-app" -Recurse
+Copy-Item "$root\backend\tests" "$backup\backend-tests" -Recurse
+Copy-Item "$root\frontend\src" "$backup\frontend-src" -Recurse
+Copy-Item "$root\docs\MODEL_METHODOLOGY.md" "$backup\MODEL_METHODOLOGY.md"
+Write-Host "Source backup created at $backup"
+
+Extract (adjust the ZIP path if your browser saves elsewhere):
+
+Expand-Archive -LiteralPath "$env:USERPROFILE\Downloads\DilliFlow-Final-Refinement-Patch.zip" -DestinationPath 'D:\DilliFlow\DilliFlow' -Force
+
+Test backend:
+
+cd D:\DilliFlow\DilliFlow\backend
+& 'D:\DilliFlow\.venv\Scripts\python.exe' -m pytest -q
+
+Start backend:
+
+& 'D:\DilliFlow\.venv\Scripts\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+Start frontend in a separate PowerShell window:
+
+cd D:\DilliFlow\DilliFlow\frontend
+npm run build
+npm run dev
+
+Use the local URL printed by Vite (normally http://127.0.0.1:5173).
+
+VERIFICATION PERFORMED ON THE PATCH SOURCE
+-------------------------------------------
+- Python compileall: passed.
+- Backend pytest suite: 23 passed.
+- TypeScript/TSX parser syntax checks on changed source files: passed.
+- A full Vite/TypeScript frontend build was not run in the packaging environment because this extracted project did not have frontend dependencies installed. Run npm run build in your existing Windows project, where node_modules is installed, and share any exact error output if it reports one.

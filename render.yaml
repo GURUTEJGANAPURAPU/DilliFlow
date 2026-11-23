@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: dilliflow-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: if [ ! -s /var/data/dilliflow.sqlite ]; then python -m app.ingest; fi && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    disk:
+      name: dilliflow-persistent-data
+      mountPath: /var/data
+      sizeGB: 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DILLIFLOW_DB_PATH
+        value: /var/data/dilliflow.sqlite
+      - key: TRANSPORT_STACK_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: POLL_INTERVAL_SECONDS
+        value: "30"
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata

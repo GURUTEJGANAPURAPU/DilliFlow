@@ -1,0 +1,8 @@
+DilliFlow OperatorPage TypeScript hotfix
+
+Copy the included file to the same path in your project:
+frontend/src/pages/OperatorPage.tsx
+
+Change: the operator dashboard response does not include operator_id. The operator ID is already supplied by the login response, so the dashboard load now uses a generic fallback label instead of reading a nonexistent response field.
+
+No backend, database, .env, API key, or operator credentials are included.
