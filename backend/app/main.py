@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from contextlib import asynccontextmanager
 from datetime import date
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Depends
@@ -47,8 +46,8 @@ app.add_middleware(
 
 
 def db_ready() -> bool:
-    if not settings.database_path.exists() or settings.database_path.stat().st_size <= 0:
-        return False
+    # Check the configured runtime database (Turso in cloud, SQLite locally).
+    # Do not gate this on a local SQLite file existing.
     try:
         with database() as conn:
             row = conn.execute("SELECT 1 FROM ingestion_meta WHERE key='db_built_at'").fetchone()
@@ -79,11 +78,11 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def startup_runtime_schema() -> None:
-    if settings.database_path.exists():
-        try:
-            ensure_runtime_schema()
-        except Exception as exc:
-            print(f"[STARTUP] Could not create operator settings table: {exc}")
+    # Ensure runtime tables in whichever database the app is configured to use.
+    try:
+        ensure_runtime_schema()
+    except Exception as exc:
+        print(f"[STARTUP] Could not create operator settings table: {exc}")
 
 
 def require_operator(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)) -> str:

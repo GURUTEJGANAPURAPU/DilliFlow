@@ -1,11 +1,115 @@
+
 from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
+
+import turso_serverless
 
 from .config import settings
+
+
+# Handle errors from either database driver.
+DB_ERRORS = (sqlite3.Error, turso_serverless.Error)
+DB_OPERATIONAL_ERRORS = (
+    sqlite3.OperationalError,
+    turso_serverless.OperationalError,
+)
+
+
+class CompatibleRow:
+    """Supports SQLite-style named and positional row access."""
+
+    def __init__(self, cursor: Any, values: Any):
+        self._values = tuple(values)
+        self._columns = [column[0] for column in cursor.description]
+        self._mapping = dict(zip(self._columns, self._values))
+
+    def __getitem__(self, key: int | str) -> Any:
+        if isinstance(key, str):
+            return self._mapping[key]
+        return self._values[key]
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def keys(self) -> list[str]:
+        return self._columns
+
+
+def turso_enabled() -> bool:
+    url_present = bool(settings.turso_database_url)
+    token_present = bool(settings.turso_auth_token)
+
+    if url_present != token_present:
+        raise RuntimeError(
+            "Both TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be configured."
+        )
+
+    return url_present and token_present
+
+
+def connect(db_path: Path | None = None) -> sqlite3.Connection:
+    """Local SQLite connection, reserved for ingestion and local workflows."""
+    path = db_path or settings.database_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(path), timeout=60)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=60000")
+    return conn
+
+
+def connect_turso():
+    """Remote Turso connection for deployed runtime requests."""
+    if not turso_enabled():
+        raise RuntimeError("Turso credentials are not configured.")
+
+    conn = turso_serverless.connect(
+        settings.turso_database_url,
+        auth_token=settings.turso_auth_token,
+    )
+    conn.row_factory = CompatibleRow
+    return conn
+
+
+@contextmanager
+def database(db_path: Path | None = None) -> Iterator[Any]:
+    """Use Turso when configured; otherwise use local SQLite."""
+    conn = connect_turso() if db_path is None and turso_enabled() else connect(db_path)
+
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def initialize_schema(conn: sqlite3.Connection) -> None:
+    """Initialize the local SQLite schema for ingestion."""
+    conn.executescript(SCHEMA_SQL)
+    conn.commit()
+
+
+def ensure_runtime_schema() -> None:
+    """Create application-owned runtime tables in the selected database."""
+    with database() as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS operator_route_capacity (
+                route_id TEXT PRIMARY KEY,
+                seat_capacity INTEGER NOT NULL CHECK(seat_capacity > 0),
+                standing_capacity INTEGER NOT NULL CHECK(standing_capacity >= 0),
+                updated_at TEXT NOT NULL,
+                updated_by TEXT NOT NULL DEFAULT 'operator'
+            )"""
+        )
+        conn.commit()
+
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS routes (
@@ -108,42 +212,3 @@ CREATE TABLE IF NOT EXISTS operator_route_capacity (
     updated_by TEXT NOT NULL DEFAULT 'operator'
 );
 """
-
-
-def connect(db_path: Path | None = None) -> sqlite3.Connection:
-    path = db_path or settings.database_path
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=60)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=60000")
-    return conn
-
-
-@contextmanager
-def database(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
-    conn = connect(db_path)
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
-def initialize_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA_SQL)
-    conn.commit()
-
-
-def ensure_runtime_schema() -> None:
-    """Create application-owned tables without rebuilding the GTFS/ticket database."""
-    with database() as conn:
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS operator_route_capacity (
-                route_id TEXT PRIMARY KEY,
-                seat_capacity INTEGER NOT NULL CHECK(seat_capacity > 0),
-                standing_capacity INTEGER NOT NULL CHECK(standing_capacity >= 0),
-                updated_at TEXT NOT NULL,
-                updated_by TEXT NOT NULL DEFAULT 'operator'
-            )"""
-        )
-        conn.commit()

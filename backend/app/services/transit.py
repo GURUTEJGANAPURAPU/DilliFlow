@@ -9,7 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from ..config import settings
-from ..db import database
+from ..db import DB_ERRORS, DB_OPERATIONAL_ERRORS, database
 
 
 DAY_COLUMNS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -60,12 +60,12 @@ def scheduled_departures_for_hour(conn: sqlite3.Connection, route_id: str, hour:
     sample_date = date(2026, 10, 3) if day_type == "weekend" else date(2026, 10, 5)
     try:
         service_ids = service_ids_for(conn, sample_date)
-    except sqlite3.OperationalError:
+    except DB_OPERATIONAL_ERRORS:
         service_ids = []
     if not service_ids:
         try:
             service_ids = [row[0] for row in conn.execute("SELECT DISTINCT service_id FROM trips WHERE service_id IS NOT NULL AND service_id<>''").fetchall()]
-        except sqlite3.OperationalError:
+        except DB_OPERATIONAL_ERRORS:
             return 0
     if not service_ids:
         return 0
@@ -99,7 +99,7 @@ def _capacity_for_route(conn: sqlite3.Connection, route_id: str) -> dict[str, An
             "SELECT seat_capacity,standing_capacity FROM operator_route_capacity WHERE route_id=?",
             (route_id,),
         ).fetchone()
-    except sqlite3.OperationalError:
+    except DB_OPERATIONAL_ERRORS:
         row = None
     if row:
         return {
@@ -124,7 +124,7 @@ def _network_reference_per_bus(conn: sqlite3.Connection, hour: int, day_type: st
     """
     try:
         database_file = str(conn.execute("PRAGMA database_list").fetchone()[2] or "")
-    except sqlite3.Error:
+    except DB_ERRORS:
         database_file = ""
     cache_key = (database_file, int(hour), str(day_type)) if database_file else None
     # In-memory SQLite connection IDs can be reused after a test closes a database;
@@ -158,14 +158,14 @@ def _network_reference_per_bus(conn: sqlite3.Connection, hour: int, day_type: st
     sample_date = date(2026, 10, 3) if day_type == "weekend" else date(2026, 10, 5)
     try:
         service_ids = service_ids_for(conn, sample_date)
-    except sqlite3.OperationalError:
+    except DB_OPERATIONAL_ERRORS:
         service_ids = []
     if not service_ids:
         try:
             service_ids = [str(r[0]) for r in conn.execute(
                 "SELECT DISTINCT service_id FROM trips WHERE service_id IS NOT NULL AND service_id<>''"
             ).fetchall()]
-        except sqlite3.OperationalError:
+        except DB_OPERATIONAL_ERRORS:
             service_ids = []
 
     departure_counts: dict[str, int] = {}
