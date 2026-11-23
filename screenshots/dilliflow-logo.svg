@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+<title id="title">DilliFlow logo</title><desc id="desc">A stylised transit flow path with connected stops.</desc>
+<rect x="3" y="3" width="122" height="122" rx="31" fill="#dcefe6"/>
+<g fill="none" stroke="#17473c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M29 38h23a17 17 0 1 1 0 34H43"/><path d="M29 64h17a17 17 0 1 1 0 34H43"/><path d="M29 91h14"/>
+</g><g fill="#1b765f"><circle cx="29" cy="38" r="7"/><circle cx="29" cy="64" r="5.5"/><circle cx="29" cy="91" r="5.5"/><circle cx="88" cy="55" r="6.5"/><circle cx="88" cy="82" r="6.5"/></g>
+</svg>
